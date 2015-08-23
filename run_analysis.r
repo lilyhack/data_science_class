@@ -3,23 +3,19 @@ library(httr)
 url <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
 file <- "instancia.zip"
 if(!file.exists(file)){
-	print("descargando")
 	download.file(url, file, method="curl")
 }
 
-#unzip and create folders (if those ain't exist)
-datafolder <- "UCI HAR Dataset"
-resultsfolder <- "results"
-if(!file.exists(datafolder)){
-	print("unzip file")
+myfolder <- "UCI HAR Dataset"
+myresults <- "results"
+if(!file.exists(myfolder)){
 	unzip(file, list = FALSE, overwrite = TRUE)
 } 
-if(!file.exists(resultsfolder)){
-	print("create results folder")
-	dir.create(resultsfolder)
+if(!file.exists(myresults)){
+	dir.create(myresults)
 } 
 
-#read txt and covnert to data.frame
+
 gettables <- function (filename,cols = NULL){
 	print(paste("Getting table:", filename))
 	f <- paste(datafolder,filename,sep="/")
@@ -32,10 +28,10 @@ gettables <- function (filename,cols = NULL){
 	data
 }
 
-#run and check gettables
+
 features <- gettables("features.txt")
 
-#read data and build database
+#build database
 getdata <- function(type, features){
 	print(paste("Getting data", type))
 	subject_data <- gettables(paste(type,"/","subject_",type,".txt",sep=""),"id")
@@ -44,11 +40,11 @@ getdata <- function(type, features){
 	return (cbind(subject_data,y_data,x_data))
 }
 
-#run and check getdata
+
 test <- getdata("test", features)
 train <- getdata("train", features)
 
-#save the resulting data in the indicated folder
+
 saveresults <- function (data,name){
 	print(paste("saving results", name))
 	file <- paste(resultsfolder, "/", name,".csv" ,sep="")
@@ -56,22 +52,20 @@ saveresults <- function (data,name){
 }
 
 
-# Merges the training and the test sets to create one data set.
+#merge the training and test set
 library(plyr)
 data <- rbind(train, test)
 data <- arrange(data, id)
 
-# Extracts only the measurements on the mean and standard deviation for each measurement. 
-mean_and_std <- data[,c(1,2,grep("std", colnames(data)), grep("mean", colnames(data)))]
-saveresults(mean_and_std,"mean_and_std")
+#extract the mean and standard deviation
+meanstd <- data[,c(1,2,grep("std", colnames(data)), grep("mean", colnames(data)))]
 
-# Uses descriptive activity names to name the activities in the data set
+
 activity_labels <- gettables("activity_labels.txt")
 
-# Appropriately labels the data set with descriptive variable names. 
 data$activity <- factor(data$activity, levels=activity_labels$V1, labels=activity_labels$V2)
 
-# Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
-tidy_dataset <- ddply(mean_and_std, .(id, activity), .fun=function(x){ colMeans(x[,-c(1:2)]) })
+#create tidy data
+tidy_dataset <- ddply(meanstd, .(id, activity), .fun=function(x){ colMeans(x[,-c(1:2)]) })
 colnames(tidy_dataset)[-c(1:2)] <- paste(colnames(tidy_dataset)[-c(1:2)], "_mean", sep="")
 saveresults(tidy_dataset,"tidy_dataset")
